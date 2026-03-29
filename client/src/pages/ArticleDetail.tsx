@@ -1,10 +1,11 @@
-import { useRoute } from "wouter";
+import { useRoute, useLocation } from "wouter";
 import { useArticle, useDownloadPdf } from "@/hooks/use-articles";
 import { useUser } from "@/hooks/use-user";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import ReactMarkdown from "react-markdown";
+import React from "react";
 import { Download, Lock, Calendar, Tag, ChevronLeft, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "wouter";
@@ -17,6 +18,20 @@ export default function ArticleDetail() {
   const { user } = useUser();
   const downloadPdf = useDownloadPdf();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
+
+  React.useEffect(() => {
+    // If article is loaded, and it's premium, and user is not subscribed or logged in
+    if (article?.isPremium) {
+      if (!user || user.subscriptionStatus === 'free') {
+        toast({
+          title: "Premium Content",
+          description: "This article requires a premium subscription.",
+        });
+        setLocation('/pricing');
+      }
+    }
+  }, [article, user, setLocation, toast]);
 
   const handleDownload = () => {
     if (!user) {

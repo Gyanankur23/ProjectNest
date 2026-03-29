@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 
 export function Navbar() {
   const [location] = useLocation();
-  const { user, isAuthenticated, isLoading } = useUser();
+  const { user, isAuthenticated, isLoading, logout } = useUser();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navLinks = [
@@ -71,14 +71,14 @@ export function Navbar() {
                 <DropdownMenu>
                   <DropdownMenuTrigger className="focus:outline-none">
                     <Avatar className="h-9 w-9 border-2 border-transparent hover:border-primary transition-all cursor-pointer">
-                      <AvatarImage src={`https://ui-avatars.com/api/?name=${user.username}&background=f97316&color=fff`} />
-                      <AvatarFallback>{user.username.slice(0, 2).toUpperCase()}</AvatarFallback>
+                      <AvatarImage src={`https://ui-avatars.com/api/?name=${user.firstName}&background=f97316&color=fff`} />
+                      <AvatarFallback>{user.firstName.slice(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
                     <div className="flex items-center justify-start gap-2 p-2">
                       <div className="flex flex-col space-y-1 leading-none">
-                        <p className="font-medium">{user.username}</p>
+                        <p className="font-medium">{user.firstName} {user.lastName}</p>
                         <p className="text-xs text-muted-foreground">{user.email}</p>
                       </div>
                     </div>
@@ -89,8 +89,11 @@ export function Navbar() {
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem 
-                      className="text-red-500 focus:text-red-500"
-                      onClick={() => window.location.href = '/api/logout'}
+                      className="text-red-500 focus:text-red-500 cursor-pointer"
+                      onClick={() => {
+                        logout();
+                        location.assign('/'); // or use setLocation
+                      }}
                     >
                       <LogOut className="mr-2 h-4 w-4" /> 
                       Log out
@@ -100,12 +103,12 @@ export function Navbar() {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <Button variant="ghost" onClick={() => window.location.href = '/api/login'}>
-                  Log in
-                </Button>
-                <Button className="bg-orange-500 hover:bg-orange-600 text-white" onClick={() => window.location.href = '/api/login'}>
-                  Get Started
-                </Button>
+                <Link href="/login">
+                  <Button variant="ghost">Log in</Button>
+                </Link>
+                <Link href="/login">
+                  <Button className="bg-orange-500 hover:bg-orange-600 text-white">Get Started</Button>
+                </Link>
               </div>
             )}
           </div>
@@ -134,17 +137,20 @@ export function Navbar() {
           ))}
           <div className="pt-4 border-t">
             {isAuthenticated ? (
-               <Button className="w-full justify-start" variant="ghost" onClick={() => window.location.href = '/api/logout'}>
+               <Button className="w-full justify-start" variant="ghost" onClick={() => {
+                 logout();
+                 location.assign('/');
+               }}>
                  <LogOut className="mr-2 h-4 w-4" /> Log out
                </Button>
             ) : (
               <div className="grid gap-2">
-                <Button variant="outline" className="w-full" onClick={() => window.location.href = '/api/login'}>
-                  Log in
-                </Button>
-                <Button className="w-full bg-orange-500 hover:bg-orange-600" onClick={() => window.location.href = '/api/login'}>
-                  Get Started
-                </Button>
+                <Link href="/login" className="w-full">
+                  <Button variant="outline" className="w-full">Log in</Button>
+                </Link>
+                <Link href="/login" className="w-full">
+                  <Button className="w-full bg-orange-500 hover:bg-orange-600">Get Started</Button>
+                </Link>
               </div>
             )}
           </div>

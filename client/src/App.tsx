@@ -16,6 +16,7 @@ import ArticleDetail from "@/pages/ArticleDetail";
 import Pricing from "@/pages/Pricing";
 import About from "@/pages/About";
 import Contact from "@/pages/Contact";
+import Login from "@/pages/Login";
 import NotFound from "@/pages/not-found";
 
 function ScrollToTop() {
@@ -39,6 +40,7 @@ function Router() {
           <Route path="/pricing" component={Pricing} />
           <Route path="/about" component={About} />
           <Route path="/contact" component={Contact} />
+          <Route path="/login" component={Login} />
           <Route component={NotFound} />
         </Switch>
       </main>

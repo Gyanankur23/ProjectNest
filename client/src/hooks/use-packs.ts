@@ -1,13 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@shared/routes";
+
+const MOCK_PACKS = [
+  { id: 1, name: "Basic Pack", price: 199, pdfLimit: 1, accessType: "limited_pdfs", features: ["1 PDF Download"] },
+  { id: 2, name: "Standard Pack", price: 349, pdfLimit: 2, accessType: "limited_pdfs", features: ["2 PDF Downloads"] },
+  { id: 3, name: "Pro Pack", price: 499, pdfLimit: 5, accessType: "limited_pdfs", features: ["5 PDF Downloads"] },
+  { id: 4, name: "Lifetime Access", price: 1999, pdfLimit: null, accessType: "lifetime", features: ["Unlimited PDF Downloads", "Lifetime Access"] },
+];
 
 export function usePacks() {
   return useQuery({
-    queryKey: [api.packs.list.path],
-    queryFn: async () => {
-      const res = await fetch(api.packs.list.path);
-      if (!res.ok) throw new Error("Failed to fetch packs");
-      return api.packs.list.responses[200].parse(await res.json());
-    },
+    queryKey: ['mock-packs'],
+    queryFn: async () => MOCK_PACKS,
   });
 }

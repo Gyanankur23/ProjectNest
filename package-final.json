@@ -1,0 +1,18 @@
+{
+  "name": "projectnest-final",
+  "version": "1.0.0",
+  "description": "ProjectNest - Article Management System",
+  "main": "server-final.cjs",
+  "scripts": {
+    "start": "node server-final.cjs",
+    "dev": "node server-final.cjs"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "author": "",
+  "license": "MIT"
+}

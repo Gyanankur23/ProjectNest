@@ -1,14 +1,26 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
-import { db } from "./db"; // Added db import
+import { supabase } from "./db";
 import { api } from "@shared/routes";
-import { premiumPacks } from "@shared/schema"; // Added premiumPacks import
-import { setupAuth } from "./replit_integrations/auth"; // Replit Auth will create this
+import { storage } from "./storage";
 import Razorpay from "razorpay";
 import { getGeminiResponse } from "./lib/gemini"; // We'll create this helper
 import crypto from "crypto";
 import { z } from "zod";
+
+declare global {
+  namespace Express {
+    interface User {
+      id: string;
+      email: string | null;
+      username?: string | null;
+      firstName: string | null;
+      lastName: string | null;
+      subscriptionStatus: string | null;
+      premiumCredits: number | null;
+    }
+  }
+}
 
 // Initialize Razorpay (mock if keys missing for dev)
 const razorpay = new Razorpay({
@@ -20,8 +32,21 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Set up Replit Auth
-  setupAuth(app);
+  
+  // Mock Authentication Middleware
+  app.use((req, res, next) => {
+    // Inject mock user directly into request
+    req.user = {
+      id: "mock-user-id",
+      email: "gyanankur@example.com",
+      firstName: "Gyanankur",
+      lastName: "Baruah",
+      subscriptionStatus: "lifetime",
+      premiumCredits: 9999
+    };
+    req.isAuthenticated = (() => true) as any;
+    next();
+  });
 
   // === ARTICLES ===
   app.get(api.articles.list.path, async (req, res) => {
@@ -42,7 +67,7 @@ export async function registerRoutes(
     // In real app, check isAdmin
     try {
       const input = api.articles.create.input.parse(req.body);
-      const article = await storage.createArticle(input);
+      const article = await storage.createArticle(input as any);
       res.status(201).json(article);
     } catch (e) {
       res.status(400).json({ message: "Validation failed" });
@@ -207,15 +232,15 @@ async function seed() {
   if (packs.length === 0) {
     // Seed Packs
     const seedPacks = [
-      { name: "Basic Pack", price: 199, pdfLimit: 1, accessType: "limited_pdfs", features: ["1 PDF Download"] },
-      { name: "Standard Pack", price: 349, pdfLimit: 2, accessType: "limited_pdfs", features: ["2 PDF Downloads"] },
-      { name: "Pro Pack", price: 499, pdfLimit: 5, accessType: "limited_pdfs", features: ["5 PDF Downloads"] },
-      { name: "Power Pack", price: 899, pdfLimit: 10, accessType: "limited_pdfs", features: ["10 PDF Downloads"] },
-      { name: "Lifetime Access", price: 1999, pdfLimit: null, accessType: "lifetime", features: ["Unlimited PDF Downloads", "Lifetime Access"] },
+      { name: "Basic Pack", price: 199, pdf_limit: 1, access_type: "limited_pdfs", features: ["1 PDF Download"] },
+      { name: "Standard Pack", price: 349, pdf_limit: 2, access_type: "limited_pdfs", features: ["2 PDF Downloads"] },
+      { name: "Pro Pack", price: 499, pdf_limit: 5, access_type: "limited_pdfs", features: ["5 PDF Downloads"] },
+      { name: "Power Pack", price: 899, pdf_limit: 10, access_type: "limited_pdfs", features: ["10 PDF Downloads"] },
+      { name: "Lifetime Access", price: 1999, pdf_limit: null, access_type: "lifetime", features: ["Unlimited PDF Downloads", "Lifetime Access"] },
     ];
     
     for (const p of seedPacks) {
-      await db.insert(premiumPacks).values(p);
+      await supabase.from('premium_packs').insert(p);
     }
   }
 
@@ -228,6 +253,7 @@ async function seed() {
       category: "Agile",
       isPremium: false,
       generatedByAi: false,
+      pdfUrl: null
     });
     await storage.createArticle({
       title: "Risk Management Strategies 2024",
@@ -235,6 +261,7 @@ async function seed() {
       category: "Risk",
       isPremium: true,
       generatedByAi: true,
+      pdfUrl: null
     });
   }
 }

@@ -24,24 +24,14 @@ export default function About() {
 
         <section>
           <h2 className="text-3xl font-bold font-display mb-8">The Team</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <Card className="hover:shadow-lg transition-all duration-300">
+          <div className="flex justify-center">
+            <Card className="hover:shadow-lg transition-all duration-300 w-full max-w-sm">
               <CardContent className="p-6 flex flex-col items-center text-center">
-                <div className="w-24 h-24 rounded-full bg-orange-100 flex items-center justify-center mb-4 text-3xl">👨‍💻</div>
-                <h3 className="text-xl font-bold mb-1">Alex Chen</h3>
-                <p className="text-sm text-primary mb-3">Founder & Tech Lead</p>
+                <div className="w-24 h-24 rounded-full bg-orange-100 flex items-center justify-center mb-4 text-3xl">🚀</div>
+                <h3 className="text-xl font-bold mb-1">Gyanankur Baruah</h3>
+                <p className="text-sm text-primary mb-3">Founder & Author</p>
                 <p className="text-sm text-muted-foreground">
-                  Former Senior PM at Tech Giant. Passionate about building tools that make work efficient.
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="hover:shadow-lg transition-all duration-300">
-              <CardContent className="p-6 flex flex-col items-center text-center">
-                <div className="w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center mb-4 text-3xl">🤖</div>
-                <h3 className="text-xl font-bold mb-1">Sarah Jones</h3>
-                <p className="text-sm text-primary mb-3">Head of Content & AI</p>
-                <p className="text-sm text-muted-foreground">
-                  Expert in AI prompt engineering and agile methodologies. Curator of the Knowledge Base.
+                  Expert in Project Management. Building the future of PM education and tools.
                 </p>
               </CardContent>
             </Card>

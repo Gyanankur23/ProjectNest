@@ -1,118 +1,192 @@
-import { db } from "./db";
+import { supabase } from "./db";
 import {
-  users, articles, premiumPacks, payments, accessLogs,
   type User, type InsertUser, type Article, type PremiumPack, type Payment, type AccessLog
 } from "@shared/schema";
-import { eq, desc, sql } from "drizzle-orm";
 
 export interface IStorage {
-  // User
-  getUser(id: string): Promise<User | undefined>; // Changed to string
-  // getUserByUsername(username: string): Promise<User | undefined>; // Removed as we use email/id
+  getUser(id: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  updateUserSubscription(userId: string, status: string, credits: number): Promise<User>; // Changed to string
-  decrementUserCredits(userId: string): Promise<User>; // Changed to string
+  updateUserSubscription(userId: string, status: string, credits: number): Promise<User>;
+  decrementUserCredits(userId: string): Promise<User>;
 
-  // Articles
   getArticles(category?: string, search?: string): Promise<Article[]>;
   getArticle(id: number): Promise<Article | undefined>;
-  createArticle(article: typeof articles.$inferInsert): Promise<Article>;
+  createArticle(article: Omit<Article, 'id' | 'createdAt'>): Promise<Article>;
   
-  // Packs
   getPacks(): Promise<PremiumPack[]>;
   getPack(id: number): Promise<PremiumPack | undefined>;
   
-  // Payments
-  createPayment(payment: typeof payments.$inferInsert): Promise<Payment>;
+  createPayment(payment: Pick<Payment, 'userId' | 'amount' | 'razorpayOrderId' | 'status' | 'packId'>): Promise<Payment>;
   updatePaymentStatus(id: number, status: string, paymentId: string): Promise<Payment>;
   
-  // Logs
-  logAccess(log: typeof accessLogs.$inferInsert): Promise<AccessLog>;
+  logAccess(log: Omit<AccessLog, 'id' | 'timestamp'>): Promise<AccessLog>;
 }
 
-export class DatabaseStorage implements IStorage {
+export class SupabaseStorage implements IStorage {
   // === USER ===
   async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
+    const { data } = await supabase.from('users').select('*').eq('id', id).single();
+    return data || undefined;
   }
 
-  // async getUserByUsername(username: string): Promise<User | undefined> {
-  //   const [user] = await db.select().from(users).where(eq(users.username, username));
-  //   return user;
-  // }
-
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
-    return user;
+    const { data, error } = await supabase.from('users').insert(insertUser).select().single();
+    if (error) throw new Error(error.message);
+    return data;
   }
 
   async updateUserSubscription(userId: string, status: string, credits: number): Promise<User> {
-    const [user] = await db.update(users)
-      .set({ subscriptionStatus: status, premiumCredits: credits })
-      .where(eq(users.id, userId))
-      .returning();
-    return user;
+    const { data, error } = await supabase.from('users')
+      .update({ subscriptionStatus: status, premiumCredits: credits })
+      .eq('id', userId)
+      .select().single();
+    if (error) throw new Error(error.message);
+    return data;
   }
 
   async decrementUserCredits(userId: string): Promise<User> {
-    const [user] = await db.update(users)
-      .set({ premiumCredits: sql`${users.premiumCredits} - 1` })
-      .where(eq(users.id, userId))
-      .returning();
-    return user;
+    const user = await this.getUser(userId);
+    if (!user) throw new Error("User not found");
+    const { data, error } = await supabase.from('users')
+      .update({ premiumCredits: Math.max(0, (user.premiumCredits || 0) - 1) })
+      .eq('id', userId)
+      .select().single();
+    if (error) throw new Error(error.message);
+    return data;
   }
 
   // === ARTICLES ===
   async getArticles(category?: string, search?: string): Promise<Article[]> {
-    let query = db.select().from(articles);
+    let query = supabase.from('articles').select('*').order('created_at', { ascending: false });
     
     if (category) {
-      query = query.where(eq(articles.category, category)) as any;
+      query = query.eq('category', category);
     }
     
-    return await query.orderBy(desc(articles.createdAt));
+    // Simple mock search using ilike
+    if (search) {
+      query = query.ilike('title', `%${search}%`);
+    }
+    
+    const { data, error } = await query;
+    if (error) {
+       console.error(error);
+       return [];
+    }
+    
+    return data.map((item: any) => ({
+      ...item,
+      isPremium: item.is_premium,
+      pdfUrl: item.pdf_url,
+      generatedByAi: item.generated_by_ai,
+      createdAt: new Date(item.created_at)
+    }));
   }
 
   async getArticle(id: number): Promise<Article | undefined> {
-    const [article] = await db.select().from(articles).where(eq(articles.id, id));
-    return article;
+    const { data, error } = await supabase.from('articles').select('*').eq('id', id).single();
+    if (error || !data) return undefined;
+    return {
+      ...data,
+      isPremium: data.is_premium,
+      pdfUrl: data.pdf_url,
+      generatedByAi: data.generated_by_ai,
+      createdAt: new Date(data.created_at)
+    };
   }
 
-  async createArticle(article: typeof articles.$inferInsert): Promise<Article> {
-    const [newArticle] = await db.insert(articles).values(article).returning();
-    return newArticle;
+  async createArticle(article: Omit<Article, 'id' | 'createdAt'>): Promise<Article> {
+    const { data, error } = await supabase.from('articles').insert({
+      title: article.title,
+      content: article.content,
+      category: article.category,
+      is_premium: article.isPremium,
+      pdf_url: article.pdfUrl,
+      generated_by_ai: article.generatedByAi
+    }).select().single();
+    
+    if (error) throw new Error(error.message);
+    return {
+      ...data,
+      isPremium: data.is_premium,
+      pdfUrl: data.pdf_url,
+      generatedByAi: data.generated_by_ai,
+      createdAt: new Date(data.created_at)
+    };
   }
 
   // === PACKS ===
   async getPacks(): Promise<PremiumPack[]> {
-    return await db.select().from(premiumPacks).orderBy(premiumPacks.price);
+    const { data, error } = await supabase.from('premium_packs').select('*').order('price');
+    if (error) return [];
+    return data.map((item: any) => ({
+       ...item,
+       pdfLimit: item.pdf_limit,
+       accessType: item.access_type
+    }));
   }
 
   async getPack(id: number): Promise<PremiumPack | undefined> {
-    const [pack] = await db.select().from(premiumPacks).where(eq(premiumPacks.id, id));
-    return pack;
+    const { data, error } = await supabase.from('premium_packs').select('*').eq('id', id).single();
+    if (error || !data) return undefined;
+    return {
+       ...data,
+       pdfLimit: data.pdf_limit,
+       accessType: data.access_type
+    };
   }
 
   // === PAYMENTS ===
-  async createPayment(payment: typeof payments.$inferInsert): Promise<Payment> {
-    const [newPayment] = await db.insert(payments).values(payment).returning();
-    return newPayment;
+  async createPayment(payment: Pick<Payment, 'userId' | 'amount' | 'razorpayOrderId' | 'status' | 'packId'>): Promise<Payment> {
+    const { data, error } = await supabase.from('payments').insert({
+       user_id: payment.userId,
+       amount: payment.amount,
+       razorpay_order_id: payment.razorpayOrderId,
+       status: payment.status,
+       pack_id: payment.packId
+    }).select().single();
+    if (error) throw new Error(error.message);
+    return {
+      ...data,
+      userId: data.user_id,
+      razorpayOrderId: data.razorpay_order_id,
+      razorpayPaymentId: data.razorpay_payment_id,
+      packId: data.pack_id,
+      createdAt: new Date(data.created_at)
+    };
   }
 
   async updatePaymentStatus(id: number, status: string, paymentId: string): Promise<Payment> {
-    const [updated] = await db.update(payments)
-      .set({ status, razorpayPaymentId: paymentId })
-      .where(eq(payments.id, id))
-      .returning();
-    return updated;
+    const { data, error } = await supabase.from('payments')
+      .update({ status, razorpay_payment_id: paymentId })
+      .eq('id', id)
+      .select().single();
+    if (error) throw new Error(error.message);
+    return {
+      ...data,
+      userId: data.user_id,
+      razorpayOrderId: data.razorpay_order_id,
+      razorpayPaymentId: data.razorpay_payment_id,
+      packId: data.pack_id,
+      createdAt: new Date(data.created_at)
+    };
   }
 
   // === LOGS ===
-  async logAccess(log: typeof accessLogs.$inferInsert): Promise<AccessLog> {
-    const [newLog] = await db.insert(accessLogs).values(log).returning();
-    return newLog;
+  async logAccess(log: Omit<AccessLog, 'id' | 'timestamp'>): Promise<AccessLog> {
+    const { data, error } = await supabase.from('access_logs').insert({
+       user_id: log.userId,
+       article_id: log.articleId,
+       type: log.type
+    }).select().single();
+    if (error) throw new Error(error.message);
+    return {
+       ...data,
+       userId: data.user_id,
+       articleId: data.article_id,
+       createdAt: new Date(data.timestamp)
+    };
   }
 }
 
-export const storage = new DatabaseStorage();
+export const storage = new SupabaseStorage();
